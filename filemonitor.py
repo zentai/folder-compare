@@ -1,59 +1,76 @@
 import sys, os
 import time
 import filecmp
-class Version(object):
+import hashlib
+import ast
+SNAPSHOT = "\\files.snapshot"
+
+class FileMeta(object):
     """
-    Version - store the file information.
+    FileMeta - store the file information.
     """
     def __init__(self, full, base, file, size):
         self.full = full + '\\' + file
         self.base = base
         self.file = file
+        self.relative_path = base + '\\' + file
         self.size = size
         self.reason = ''
-    
-    def pack(self, dictionary = { 'source': 'FingerPrint\\release', 'dest': 'release_pack' }):
-        dictionary['file'] = self.base+'\\'+self.file
-        dest = dictionary['dest']+'\\'+self.base
-        return "copy %(source)s\\%(file)s %(dest)s\\%(file)s" % dictionary
-    
-    def save(self, release_version, dictionary = { 'source': '.', 'dest': '..\\..\\' }):
-        dictionary['file'] = self.base+'\\'+self.file
-        dictionary['source'] = (self.base+'\\'+self.file).replace('dist', 'update\\'+release_version)
-        return "copy %(source)s %(file)s /Y" % dictionary
-    
+        self.hash = self._hash()
+
+    def _hash(self):
+        filepath = self.full
+        sha1 = hashlib.sha1()
+        f = open(filepath, 'rb')
+        try:
+            sha1.update(f.read())
+        finally:
+            f.close()
+        return sha1.hexdigest()
+
+        
 def scan(folder='.'):
     file_versions = {}
     rootlen = len(folder)
+    
+    # lookup snapshot before scan
+    if os.path.exists(folder + SNAPSHOT):
+        fmeta = open(folder + SNAPSHOT, 'r')
+        file_version = ast.literal_eval(fmeta.read())
+        fmeta.close()
+        return file_version
+    
     i = 0
     for base, dirs, files in os.walk(folder):
         for file in files:
-            # print "base: %s, dirs: %s, " % (base, dirs)
             (mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime) = os.stat(base+'/'+file)
-            version = Version(base, base.replace(folder+'\\', ''), file, size)
-            file_versions[version.base + "\\" + version.file] = version
+            file_meta = FileMeta(base, base.replace(folder+'\\', ''), file, size)
+            file_versions[file_meta.relative_path] = file_meta.hash
+    
+    # store snapshot after scan
+    fmeta = open(folder + SNAPSHOT, 'w')            
+    fmeta.write(str(file_versions))
+    fmeta.close()
+    
     return file_versions
     
-def diff_size(version_old, version_new):
+def diff_list(version_old, version_new):
     f = open('change_list.txt', 'w')
     diff = {}
     for key, value in sorted(version_new.items()):
-        file = value
+        new_file_hash = value
         try:
-            file2 = version_old[key]
-            if not filecmp.cmp(file.full, file2.full, shallow=False):
-            # if file.size != file2.size:
-                file2.reason = 'size diff'
-                diff[key] = file2
-                s = "%s \t %s \n" % (file2.full, "diff file")
+            old_file_hash = version_old[key]
+            if new_file_hash != old_file_hash:
+                diff[key] = value
+                s = "%s \t %s \n" % (key, ' changed')
                 f.write(s)
             else:
-                s = "%s \t %s \n" % (file2.full, "same file")
+                s = "%s \t %s \n" % (key, '')
                 f.write(s)
         except KeyError:
-            file.reason = 'new file'
-            diff[key] = file
-            s = "%s \t %s \n" % (file.full, file.reason)
+            diff[key] = value
+            s = "%s \t %s \n" % (key, ' new file')
             f.write(s)
     f.close()
     return diff
@@ -93,7 +110,7 @@ def BuildUpdateFile(release_version, diff):
     update_bat.write(mkdirs)
     update_bat.write(command)
     update_bat.close()
-   
+
 import sys    
 if __name__ == "__main__":
     if len(sys.argv) != 4:
@@ -110,7 +127,7 @@ if __name__ == "__main__":
         old_path = sys.argv[3]
     versions_new = scan(new_path)
     versions_old = scan(old_path)
-    diff = diff_size(versions_old, versions_new)
+    diff = diff_list(versions_old, versions_new)
     folder_list = {}
-    Release(diff)
-    BuildUpdateFile(release_version, diff)
+    #Release(diff)
+    #BuildUpdateFile(release_version, diff)
