@@ -123,7 +123,7 @@ class FolderScanner(object):
         for base, dirs, files in os.walk(self.folder):
             for file in files:
                 (mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime) = os.stat(base+'/'+file)
-                file_meta = FileMeta(base, base.replace(self.folder+"\\", ''), file, size)
+                file_meta = FileMeta(base, base.replace(self.folder, ''), file, size)
                 file_versions[file_meta.relative_path] = file_meta.hash
         # store snapshot after scan
         fmeta = open(self.folder + SNAPSHOT, 'w')            
