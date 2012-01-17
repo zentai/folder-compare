@@ -10,7 +10,7 @@ logging.basicConfig(
 )
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 hdlr = logging.FileHandler('info.log')
 format = '%(asctime)s %(levelname)s %(module)s.%(funcName)s():%(lineno)s %(message)s',
@@ -56,11 +56,11 @@ class DiffScanner(object):
     """
     compare 2 version folder, look up difference. 
     """
-    def __init__(self, new_version, old_version):
+    def __init__(self, new_version, old_version, snapshot = True):
         try:
             logger.info("Compare: %s, %s" % (new_version, old_version))
-            self.new_version = FolderScanner(new_version).scan()
-            self.old_version = FolderScanner(old_version).scan()
+            self.new_version = FolderScanner(new_version).scan(snapshot)
+            self.old_version = FolderScanner(old_version).scan(snapshot)
         except FolderNotExistsException as e:
             raise e
 
@@ -106,24 +106,24 @@ class FolderScanner(object):
             raise FolderNotExistsException(msg)
         logger.info("scan folder: %s" % folder)
         
-    def scan(self):
+    def scan(self, snapshot = True):
         file_versions = {}
         rootlen = len(self.folder)
         
         # lookup snapshot before scan
-        
-        if os.path.exists(self.folder + SNAPSHOT):
-            fmeta = open(self.folder + SNAPSHOT, 'r')
-            file_version = ast.literal_eval(fmeta.read())
-            fmeta.close()
-            logger.debug("folder: %s , scan mode: %s" % (self.folder, "snapshot"))
-            return file_version
+        if snapshot:
+            if os.path.exists(self.folder + SNAPSHOT):
+                fmeta = open(self.folder + SNAPSHOT, 'r')
+                file_version = ast.literal_eval(fmeta.read())
+                fmeta.close()
+                logger.debug("folder: %s , scan mode: %s" % (self.folder, "snapshot"))
+                return file_version
         logger.debug("folder: %s , scan mode: %s" % (self.folder, "deep"))
         i = 0
         for base, dirs, files in os.walk(self.folder):
             for file in files:
                 (mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime) = os.stat(base+'/'+file)
-                file_meta = FileMeta(base, base.replace(self.folder+'\\', ''), file, size)
+                file_meta = FileMeta(base, base.replace(self.folder+"\\", ''), file, size)
                 file_versions[file_meta.relative_path] = file_meta.hash
         # store snapshot after scan
         fmeta = open(self.folder + SNAPSHOT, 'w')            
@@ -183,7 +183,7 @@ if __name__ == "__main__":
         release_version = sys.argv[1]
         new_path = sys.argv[2]
         old_path = sys.argv[3]
-    x = DiffScanner(new_path, old_path)
+    x = DiffScanner(new_path, old_path, snapshot = False)
     x.scan()
     
     #Release(diff)
