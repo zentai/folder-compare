@@ -1,0 +1,6 @@
+*log
+build/
+dist/
+files.snapshot
+*.pyc
+MANIFEST
