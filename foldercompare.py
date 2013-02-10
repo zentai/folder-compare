@@ -14,9 +14,7 @@ class FolderNotExistsException(Exception):
         return repr(self.value)
 
 class FileMeta(object):
-    """
-    FileMeta - build up the file snapshot by sha-1.
-    """
+    """ a structure to handle file meta and build up the file snapshot(sha-1). """
     def __init__(self, full, base, file, size):
         self.full = full + os.sep + file
         self.base = base
@@ -38,9 +36,7 @@ class FileMeta(object):
         return sha1.hexdigest()
 
 class DiffScanner(object):
-    """
-    compare 2 version folder, look up difference.
-    """
+    """ compare 2 version folder, look up difference. """
     def __init__(self, new_version, old_version, snapshot = True):
         try:
             logger.info("Compare: %s, %s" % (new_version, old_version))
@@ -84,9 +80,7 @@ class DiffScanner(object):
         return diff
 
 class FolderScanner(object):
-    """
-    scan specify folder and calc each file sha-1.
-    """
+    """ scan specify folder and calc each file sha-1. """
     def __init__(self, folder):
         self.folder = folder
         if not os.path.exists(folder):
@@ -95,13 +89,19 @@ class FolderScanner(object):
             raise FolderNotExistsException(msg)
         logger.info("scan folder: %s" % folder)
 
-    """
-    snapshot = True
-    lookup files.snapshot before rescan all files.
-    snapshot = False
-    rescan all file and rebuild files.snapshot
-    """
     def scan(self, snapshot = True):
+        """ scan folder recursive
+
+        Keyworkd arguments:
+        snapshot
+            True - lookup files.snapshot before rescan all files.
+            False - rescan all file and rebuild files.snapshot
+
+        Return:
+        a dict contains relative_path, hash
+
+        """
+
         file_versions = {}
         rootlen = len(self.folder)
 
