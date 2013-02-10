@@ -147,14 +147,11 @@ logger.addHandler(hdlr)
 if __name__ == "__main__":
     if len(sys.argv) != 3:
         print "========================================="
-        print "= Usage: d:\\filemonitor.py new_version_path old_version_path"
-        print "= Default: filemonitor.py D:\\python_project\\FingerPrint\\release D:\\python_project\\FingerPrint\\Genecodev3.0.25"
+        print "= Usage: $ python filemonitor.py ${new_version_path} ${old_version_path}"
         print "========================================="
-        new_path = 'D:\\python_project\\ReleaseRepository\\Genecodev3.0.31'
-        old_path = 'D:\\python_project\\ReleaseRepository\\Genecodev3.0.30'
+        return
     else:
         new_path = sys.argv[1]
         old_path = sys.argv[2]
     x = DiffScanner(new_path, old_path, snapshot = True)
     x.scan()
-    os.system("start " + CHANGELOG)
