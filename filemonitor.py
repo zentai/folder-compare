@@ -17,7 +17,7 @@ format = '%(asctime)s %(levelname)s %(module)s.%(funcName)s():%(lineno)s %(messa
 format = '%(asctime)s %(levelname)s %(message)s'
 formatter = logging.Formatter(format)
 hdlr.setFormatter(formatter)
-logger.addHandler(hdlr) 
+logger.addHandler(hdlr)
 
 
 SNAPSHOT = "\\files.snapshot"
@@ -27,7 +27,7 @@ class FolderNotExistsException(Exception):
         self.value = value
     def __str__(self):
         return repr(self.value)
-        
+
 class FileMeta(object):
     """
     FileMeta - build up the file snapshot by sha-1.
@@ -54,7 +54,7 @@ class FileMeta(object):
 
 class DiffScanner(object):
     """
-    compare 2 version folder, look up difference. 
+    compare 2 version folder, look up difference.
     """
     def __init__(self, new_version, old_version, snapshot = True):
         try:
@@ -85,19 +85,19 @@ class DiffScanner(object):
                 s = "%s %s \n" % ('[+]', key)
                 logger.debug(s)
                 f.write(s)
-        
+
         for key in sorted(self.old_version):
             if not key in self.new_version:
                 diff[key] = "-"
                 s = "%s %s \n" % ('[-]', key)
                 logger.debug(s)
                 f.write(s)
-        
+
         f.close()
         logger.info("Compare completed")
-        
+
         return diff
-        
+
 class FolderScanner(object):
     """
     scan specify folder and calc each file sha-1.
@@ -119,7 +119,7 @@ class FolderScanner(object):
     def scan(self, snapshot = True):
         file_versions = {}
         rootlen = len(self.folder)
-        
+
         # lookup snapshot before scan
         if snapshot:
             if os.path.exists(self.folder + SNAPSHOT):
@@ -136,17 +136,17 @@ class FolderScanner(object):
                 file_meta = FileMeta(base, base.replace(self.folder, ''), file, size)
                 file_versions[file_meta.relative_path] = file_meta.hash
         # build files.snapshot after scan
-        fmeta = open(self.folder + SNAPSHOT, 'w')            
+        fmeta = open(self.folder + SNAPSHOT, 'w')
         fmeta.write(str(file_versions))
         fmeta.close()
         logger.info("scan folder: %s completed" % self.folder)
         return file_versions
 
-import sys    
+import sys
 if __name__ == "__main__":
     if len(sys.argv) != 3:
         print "========================================="
-        print "= Usage: d:\\filemonitor.py new_version_path old_version_path" 
+        print "= Usage: d:\\filemonitor.py new_version_path old_version_path"
         print "= Default: filemonitor.py D:\\python_project\\FingerPrint\\release D:\\python_project\\FingerPrint\\Genecodev3.0.25"
         print "========================================="
         new_path = 'D:\\python_project\\ReleaseRepository\\Genecodev3.0.31'
