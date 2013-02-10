@@ -1,5 +1,5 @@
-import sys, os
-import time
+import sys
+import os
 import filecmp
 import hashlib
 import ast
@@ -34,6 +34,53 @@ class FileMeta(object):
             f.close()
         logger.debug("%s - %s" % (sha1.hexdigest(), filepath))
         return sha1.hexdigest()
+
+class FolderScanner(object):
+    """ scan specify folder and calc each file sha-1. """
+    def __init__(self, folder):
+        self.folder = folder
+        if not os.path.exists(folder):
+            msg = "%s not found" % folder
+            logger.error(msg)
+            raise FolderNotExistsException(msg)
+        logger.info("scan folder: %s" % folder)
+
+    def scan(self, snapshot = True):
+        """ scan folder recursive
+
+        Keyworkd arguments:
+        snapshot
+            True - lookup files.snapshot before rescan all files.
+            False - rescan all file and rebuild files.snapshot
+
+        Return:
+        a dict contains relative_path, hash
+
+        """
+
+        file_versions = {}
+        rootlen = len(self.folder)
+
+        # lookup snapshot before scan
+        if snapshot:
+            if os.path.exists(self.folder + SNAPSHOT):
+                fmeta = open(self.folder + SNAPSHOT, 'r')
+                file_version = ast.literal_eval(fmeta.read())
+                fmeta.close()
+                logger.debug("folder: %s , scan mode: %s" % (self.folder, "snapshot"))
+                return file_version
+        logger.debug("folder: %s , scan mode: %s" % (self.folder, "deep"))
+        i = 0
+        for base, dirs, files in os.walk(self.folder):
+            for file in files:
+                                file_meta = FileMeta(base, base.replace(self.folder, ''), file, size)
+                file_versions[file_meta.relative_path] = file_meta.hash
+        # build files.snapshot after scan
+        fmeta = open(self.folder + SNAPSHOT, 'w')
+        fmeta.write(str(file_versions))
+        fmeta.close()
+        logger.info("scan folder: %s completed" % self.folder)
+        return file_versions
 
 class DiffScanner(object):
     """ compare 2 version folder, look up difference. """
@@ -79,67 +126,16 @@ class DiffScanner(object):
 
         return diff
 
-class FolderScanner(object):
-    """ scan specify folder and calc each file sha-1. """
-    def __init__(self, folder):
-        self.folder = folder
-        if not os.path.exists(folder):
-            msg = "%s not found" % folder
-            logger.error(msg)
-            raise FolderNotExistsException(msg)
-        logger.info("scan folder: %s" % folder)
-
-    def scan(self, snapshot = True):
-        """ scan folder recursive
-
-        Keyworkd arguments:
-        snapshot
-            True - lookup files.snapshot before rescan all files.
-            False - rescan all file and rebuild files.snapshot
-
-        Return:
-        a dict contains relative_path, hash
-
-        """
-
-        file_versions = {}
-        rootlen = len(self.folder)
-
-        # lookup snapshot before scan
-        if snapshot:
-            if os.path.exists(self.folder + SNAPSHOT):
-                fmeta = open(self.folder + SNAPSHOT, 'r')
-                file_version = ast.literal_eval(fmeta.read())
-                fmeta.close()
-                logger.debug("folder: %s , scan mode: %s" % (self.folder, "snapshot"))
-                return file_version
-        logger.debug("folder: %s , scan mode: %s" % (self.folder, "deep"))
-        i = 0
-        for base, dirs, files in os.walk(self.folder):
-            for file in files:
-                (mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime) = os.stat(base+'/'+file)
-                file_meta = FileMeta(base, base.replace(self.folder, ''), file, size)
-                file_versions[file_meta.relative_path] = file_meta.hash
-        # build files.snapshot after scan
-        fmeta = open(self.folder + SNAPSHOT, 'w')
-        fmeta.write(str(file_versions))
-        fmeta.close()
-        logger.info("scan folder: %s completed" % self.folder)
-        return file_versions
-
 import sys
 import logging
 logging.basicConfig(
     level = logging.INFO,
-    format = '%(asctime)s %(levelname)s %(module)s.%(funcName)s():%(lineno)s %(message)s',
-)
+    )
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 hdlr = logging.FileHandler('info.log')
-format = '%(asctime)s %(levelname)s %(module)s.%(funcName)s():%(lineno)s %(message)s',
-format = '%(asctime)s %(levelname)s %(message)s'
 formatter = logging.Formatter(format)
 hdlr.setFormatter(formatter)
 logger.addHandler(hdlr)
