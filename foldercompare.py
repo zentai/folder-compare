@@ -149,9 +149,8 @@ if __name__ == "__main__":
         print "========================================="
         print "= Usage: $ python filemonitor.py ${new_version_path} ${old_version_path}"
         print "========================================="
-        return
     else:
         new_path = sys.argv[1]
         old_path = sys.argv[2]
-    x = DiffScanner(new_path, old_path, snapshot = True)
-    x.scan()
+        x = DiffScanner(new_path, old_path, snapshot = True)
+        x.scan()
