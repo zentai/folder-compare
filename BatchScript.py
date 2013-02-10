@@ -5,20 +5,6 @@ import hashlib
 import ast
 import logging
 from filemonitor import *
-logging.basicConfig(
-    level = logging.INFO,
-    format = '%(asctime)s %(levelname)s %(module)s.%(funcName)s():%(lineno)s %(message)s',
-)
-# Get an instance of a logger
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
-hdlr = logging.FileHandler('info.log')
-format = '%(asctime)s %(levelname)s %(module)s.%(funcName)s():%(lineno)s %(message)s',
-format = '%(asctime)s %(levelname)s %(message)s'
-formatter = logging.Formatter(format)
-hdlr.setFormatter(formatter)
-logger.addHandler(hdlr)
 
 class BatchScript(object):
     def __init__(self, source, target):
@@ -77,6 +63,21 @@ def BuildUpdateFile(release_version, diff):
     update_bat.close()
 
 import sys
+logging.basicConfig(
+    level = logging.INFO,
+    format = '%(asctime)s %(levelname)s %(module)s.%(funcName)s():%(lineno)s %(message)s',
+)
+# Get an instance of a logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+hdlr = logging.FileHandler('info.log')
+format = '%(asctime)s %(levelname)s %(module)s.%(funcName)s():%(lineno)s %(message)s',
+format = '%(asctime)s %(levelname)s %(message)s'
+formatter = logging.Formatter(format)
+hdlr.setFormatter(formatter)
+logger.addHandler(hdlr)
+
 if __name__ == "__main__":
     if len(sys.argv) != 4:
         print "========================================="

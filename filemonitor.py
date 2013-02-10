@@ -3,25 +3,10 @@ import time
 import filecmp
 import hashlib
 import ast
-import logging
-logging.basicConfig(
-    level = logging.INFO,
-    format = '%(asctime)s %(levelname)s %(module)s.%(funcName)s():%(lineno)s %(message)s',
-)
-# Get an instance of a logger
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
-hdlr = logging.FileHandler('info.log')
-format = '%(asctime)s %(levelname)s %(module)s.%(funcName)s():%(lineno)s %(message)s',
-format = '%(asctime)s %(levelname)s %(message)s'
-formatter = logging.Formatter(format)
-hdlr.setFormatter(formatter)
-logger.addHandler(hdlr)
-
 
 SNAPSHOT = "\\files.snapshot"
 CHANGELOG = "change_list.log"
+
 class FolderNotExistsException(Exception):
     def __init__(self, value):
         self.value = value
@@ -143,6 +128,22 @@ class FolderScanner(object):
         return file_versions
 
 import sys
+import logging
+logging.basicConfig(
+    level = logging.INFO,
+    format = '%(asctime)s %(levelname)s %(module)s.%(funcName)s():%(lineno)s %(message)s',
+)
+# Get an instance of a logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+hdlr = logging.FileHandler('info.log')
+format = '%(asctime)s %(levelname)s %(module)s.%(funcName)s():%(lineno)s %(message)s',
+format = '%(asctime)s %(levelname)s %(message)s'
+formatter = logging.Formatter(format)
+hdlr.setFormatter(formatter)
+logger.addHandler(hdlr)
+
 if __name__ == "__main__":
     if len(sys.argv) != 3:
         print "========================================="
