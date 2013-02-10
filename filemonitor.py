@@ -4,7 +4,7 @@ import filecmp
 import hashlib
 import ast
 
-SNAPSHOT = "\\files.snapshot"
+SNAPSHOT = os.sep + "files.snapshot"
 CHANGELOG = "change_list.log"
 
 class FolderNotExistsException(Exception):
@@ -18,10 +18,10 @@ class FileMeta(object):
     FileMeta - build up the file snapshot by sha-1.
     """
     def __init__(self, full, base, file, size):
-        self.full = full + '\\' + file
+        self.full = full + os.sep + file
         self.base = base
         self.file = file
-        self.relative_path = base + '\\' + file
+        self.relative_path = base + os.sep + file
         self.size = size
         self.reason = ''
         self.hash = self._hash()
