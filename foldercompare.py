@@ -50,6 +50,20 @@ class FolderScanner(object):
             raise FolderNotExistsException(msg)
         self.logger.info("scan folder: %s" % folder)
 
+    def _build_snapshot():
+        self.logger.debug("folder: %s , scan mode: %s" % (self.folder, "deep"))
+        # recursive to calc all files sha-1, return a dict and write into snapshot
+        for base, dirs, files in os.walk(self.folder):
+            for f in files:
+                (mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime) = os.stat(base+ os.sep +f)
+                file_meta = FileMeta(base, base.replace(self.folder, ''), f, size)
+                file_versions[file_meta.relative_path] = file_meta.hash
+        # build files.snapshot after scan
+        fmeta = open(self.folder + SNAPSHOT, 'w')
+        fmeta.write(str(file_versions))
+        fmeta.close()
+        return file_versions
+
     def scan(self, snapshot = True):
         """ scan folder recursive
 
@@ -72,20 +86,11 @@ class FolderScanner(object):
                 fmeta = open(self.folder + SNAPSHOT, 'r')
                 file_version = ast.literal_eval(fmeta.read())
                 fmeta.close()
-                self.logger.debug("folder: %s , scan mode: %s" % (self.folder, "snapshot"))
+                self.logger.debug("folder: %s , read Snapshot" % self.folder)
                 return file_version
-        self.logger.debug("folder: %s , scan mode: %s" % (self.folder, "deep"))
-        i = 0
-        for base, dirs, files in os.walk(self.folder):
-            for f in files:
-                (mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime) = os.stat(base+ os.sep +f)
-                file_meta = FileMeta(base, base.replace(self.folder, ''), f, size)
-                file_versions[file_meta.relative_path] = file_meta.hash
-        # build files.snapshot after scan
-        fmeta = open(self.folder + SNAPSHOT, 'w')
-        fmeta.write(str(file_versions))
-        fmeta.close()
-        self.logger.info("scan folder: %s completed" % self.folder)
+            else:
+                self.logger.debug('Snapshot not found.')
+        file_versions = self._build_snapshot()
         return file_versions
 
 class DiffScanner(object):
