@@ -78,6 +78,7 @@ class FolderScanner(object):
         i = 0
         for base, dirs, files in os.walk(self.folder):
             for f in files:
+                (mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime) = os.stat(base+ os.sep +f)
                 file_meta = FileMeta(base, base.replace(self.folder, ''), f, size)
                 file_versions[file_meta.relative_path] = file_meta.hash
         # build files.snapshot after scan
@@ -100,6 +101,15 @@ class DiffScanner(object):
             raise e
 
     def scan(self):
+        """DiffScanner.scan()
+        compare two folder file's sha-1
+        return:
+        dist = {${relative_path}, ${status}}
+        ${status} = [U|+|-]
+        U = update
+        + = new files
+        - = remove files
+        """
         diff = {}
         for key, value in sorted(self.new_version.items()):
             new_file_hash = value
@@ -142,7 +152,7 @@ if __name__ == "__main__":
     else:
         new_path = sys.argv[1]
         old_path = sys.argv[2]
-        x = DiffScanner(new_path, old_path, snapshot = True)
+        x = DiffScanner(new_path, old_path, snapshot = False)
         changelist = x.scan()
         f = open(CHANGELOG, 'w')
         for filename, status in changelist.items():
