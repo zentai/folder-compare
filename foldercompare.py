@@ -3,6 +3,7 @@ import os
 import filecmp
 import hashlib
 import ast
+import logging
 
 SNAPSHOT = os.sep + "files.snapshot"
 CHANGELOG = "change_list.log"
@@ -16,6 +17,8 @@ class FolderNotExistsException(Exception):
 class FileMeta(object):
     """ a structure to handle file meta and build up the file snapshot(sha-1). """
     def __init__(self, full, base, file, size):
+        self.logger = logging.getLogger(__name__)
+        self.logger.addHandler(hdlr)
         self.full = full + os.sep + file
         self.base = base
         self.file = file
@@ -32,18 +35,20 @@ class FileMeta(object):
             sha1.update(f.read())
         finally:
             f.close()
-        logger.debug("%s - %s" % (sha1.hexdigest(), filepath))
+        self.logger.debug("%s - %s" % (sha1.hexdigest(), filepath))
         return sha1.hexdigest()
 
 class FolderScanner(object):
     """ scan specify folder and calc each file sha-1. """
     def __init__(self, folder):
+        self.logger = logging.getLogger(__name__)
+        self.logger.addHandler(hdlr)
         self.folder = folder
         if not os.path.exists(folder):
             msg = "%s not found" % folder
-            logger.error(msg)
+            self.logger.error(msg)
             raise FolderNotExistsException(msg)
-        logger.info("scan folder: %s" % folder)
+        self.logger.info("scan folder: %s" % folder)
 
     def scan(self, snapshot = True):
         """ scan folder recursive
@@ -67,86 +72,79 @@ class FolderScanner(object):
                 fmeta = open(self.folder + SNAPSHOT, 'r')
                 file_version = ast.literal_eval(fmeta.read())
                 fmeta.close()
-                logger.debug("folder: %s , scan mode: %s" % (self.folder, "snapshot"))
+                self.logger.debug("folder: %s , scan mode: %s" % (self.folder, "snapshot"))
                 return file_version
-        logger.debug("folder: %s , scan mode: %s" % (self.folder, "deep"))
+        self.logger.debug("folder: %s , scan mode: %s" % (self.folder, "deep"))
         i = 0
         for base, dirs, files in os.walk(self.folder):
-            for file in files:
-                                file_meta = FileMeta(base, base.replace(self.folder, ''), file, size)
+            for f in files:
+                file_meta = FileMeta(base, base.replace(self.folder, ''), f, size)
                 file_versions[file_meta.relative_path] = file_meta.hash
         # build files.snapshot after scan
         fmeta = open(self.folder + SNAPSHOT, 'w')
         fmeta.write(str(file_versions))
         fmeta.close()
-        logger.info("scan folder: %s completed" % self.folder)
+        self.logger.info("scan folder: %s completed" % self.folder)
         return file_versions
 
 class DiffScanner(object):
     """ compare 2 version folder, look up difference. """
     def __init__(self, new_version, old_version, snapshot = True):
         try:
-            logger.info("Compare: %s, %s" % (new_version, old_version))
+            self.logger = logging.getLogger(__name__)
+            self.logger.addHandler(hdlr)
+            self.logger.info("Compare: %s, %s" % (new_version, old_version))
             self.new_version = FolderScanner(new_version).scan(snapshot)
             self.old_version = FolderScanner(old_version).scan(snapshot)
         except FolderNotExistsException as e:
             raise e
 
     def scan(self):
-        f = open(CHANGELOG, 'w')
         diff = {}
         for key, value in sorted(self.new_version.items()):
             new_file_hash = value
             try:
                 old_file_hash = self.old_version[key]
+                # Updated file
                 if new_file_hash != old_file_hash:
                     diff[key] = "U"
-                    s = "%s %s \n" % ('[U]', key)
-                    logger.debug(s)
-                    f.write(s)
+                    self.logger.debug("%s %s \n" % ('[U]', key))
+                # Non-update file
                 else:
                     pass
-                    #s = "%s %s \n" % ('[ ]', key)
-                    #f.write(s)
             except KeyError:
+                # New File
                 diff[key] = "+"
-                s = "%s %s \n" % ('[+]', key)
-                logger.debug(s)
-                f.write(s)
+                self.logger.debug("%s %s \n" % ('[+]', key))
 
         for key in sorted(self.old_version):
+            # removed file
             if not key in self.new_version:
                 diff[key] = "-"
-                s = "%s %s \n" % ('[-]', key)
-                logger.debug(s)
-                f.write(s)
-
-        f.close()
-        logger.info("Compare completed")
-
+                self.logger.debug("%s %s \n" % ('[-]', key))
+        self.logger.info("Compare completed")
         return diff
 
 import sys
-import logging
-logging.basicConfig(
-    level = logging.INFO,
-    )
-# Get an instance of a logger
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logging.basicConfig(level = logging.INFO)
 
+# Get an instance of a logger
 hdlr = logging.FileHandler('info.log')
+format = '%(asctime)s %(levelname)s %(module)s.%(funcName)s():%(lineno)s %(message)s'
 formatter = logging.Formatter(format)
 hdlr.setFormatter(formatter)
-logger.addHandler(hdlr)
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
         print "========================================="
-        print "= Usage: $ python filemonitor.py ${new_version_path} ${old_version_path}"
+        print "= Usage: $ python foldercompare.py ${new_version_path} ${old_version_path}"
         print "========================================="
     else:
         new_path = sys.argv[1]
         old_path = sys.argv[2]
         x = DiffScanner(new_path, old_path, snapshot = True)
-        x.scan()
+        changelist = x.scan()
+        f = open(CHANGELOG, 'w')
+        for filename, status in changelist.items():
+            f.write("[%s] %s \n" % (status, filename))
+        f.close()
