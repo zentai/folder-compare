@@ -13,73 +13,57 @@ class FolderNotExistsException(Exception):
     def __str__(self):
         return repr(self.value)
 
-class FileMeta(object):
-    """ a structure to handle file meta and build up the file snapshot(sha-1). """
-    def __init__(self, path, filename):
-        self.logger = logging.getLogger(__name__)
-        self.logger.addHandler(hdlr)
-        self.full = path + os.sep + filename
-        # TODO: enhance the performance by sha-1(atime + mtime + ctime + size)
-        # (mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime) = os.stat(self.full)
-        with open(self.full,'rb') as f:
-            content = f.read()
-        f.close()
-        self.hash = hashlib.sha1(content).hexdigest()
+def _calc_hash(path, filename):
+    """ the algo build up the file snapshot(sha-1). """
+    full = path + os.sep + filename
+    with open(full,'rb') as f:
+        content = f.read()
+    f.close()
+    return hashlib.sha1(content).hexdigest()
+    # TODO: enhance the performance by sha-1(atime + mtime + ctime + size)
+    # (mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime) = os.stat(full)
+    # self.hash = hashlib.sha1(str(mtime) + str(size)).hexdigest()
 
-class FolderScanner(object):
-    """ scan specify folder and calc each file sha-1. """
-    def __init__(self, folder):
-        self.logger = logging.getLogger(__name__)
-        self.logger.addHandler(hdlr)
-        self.folder = folder
-        if not os.path.exists(folder):
-            msg = "folder: %s not found" % folder
-            self.logger.error(msg)
-            raise FolderNotExistsException(msg)
-        self.logger.info("scan folder: %s" % folder)
+def _build_snapshot(folder):
+    """ iterative all files and build snapshot dict, format: { relative path: hash }
+        we are using relative path to identifier the file in difference base folder.
+        ex:
+        c:\the_new_version_folder\src\core\logic\shoppingcart\calc.py
+        c:\the_old_version_folder\src\core\logic\shoppingcart\calc.py
+        |<------- base --------->| <------ relative_path ----------->|
+    """
+    logger.debug("folder: %s , build snapshot" % folder)
+    file_hash = {}
+    for base, dirs, files in os.walk(folder):
+        for filename in files:
+            file_hash[base.replace(folder, '') + filename ] = _calc_hash(base, filename)
 
-    def _build_snapshot(self):
-        self.logger.debug("folder: %s , build snapshot" % self.folder)
-        file_hash = {}
-        # recursive to calc all files sha-1, return a dict and write into snapshot
-        for base, dirs, files in os.walk(self.folder):
-            for filename in files:
-                file_meta = FileMeta(base, filename)
-                file_hash[base.replace(self.folder, '') + filename ] = file_meta.hash
-        # build files.snapshot after scan
-        with open(self.folder + SNAPSHOT, 'w') as f:
-            f.write(str(file_hash))
-        f.close()
-        return file_hash
+    # build files.snapshot after scan
+    with open(folder + SNAPSHOT, 'w') as f:
+        f.write(str(file_hash))
+    f.close()
 
-    def scan(self, snapshot = True):
-        """ scan folder recursive
+    return file_hash
 
-        Keyworkd arguments:
-        snapshot
-            True - lookup files.snapshot before rescan all files.
-            False - rescan all file and rebuild files.snapshot
+def _scan_folder(folder, snapshot = True):
+    # check folder exists
+    if not os.path.exists(folder):
+        raise FolderNotExistsException("folder: %s not found" % folder)
 
-        Return:
-        a dict contains relative_path, hash
-
-        """
-
-        file_hash = {}
-        rootlen = len(self.folder)
-
-        # lookup snapshot before scan
-        if snapshot:
-            if os.path.exists(self.folder + SNAPSHOT):
-                fmeta = open(self.folder + SNAPSHOT, 'r')
-                file_version = ast.literal_eval(fmeta.read())
-                fmeta.close()
-                self.logger.debug("folder: %s , read Snapshot" % self.folder)
-                return file_version
-            else:
-                self.logger.debug('Snapshot not found.')
-        file_hash = self._build_snapshot()
-        return file_hash
+    logger.info("scan folder: %s" % folder)
+    file_hash = {}
+    # lookup snapshot before scan
+    if snapshot:
+        if os.path.exists(folder + SNAPSHOT):
+            fmeta = open(folder + SNAPSHOT, 'r')
+            file_version = ast.literal_eval(fmeta.read())
+            fmeta.close()
+            logger.debug("folder: %s , read Snapshot" % folder)
+            return file_version
+        else:
+            logger.debug('Snapshot not found.')
+    file_hash = _build_snapshot(folder)
+    return file_hash
 
 class DiffScanner(object):
     """ compare 2 version folder, look up difference. """
@@ -88,8 +72,8 @@ class DiffScanner(object):
             self.logger = logging.getLogger(__name__)
             self.logger.addHandler(hdlr)
             self.logger.info("Compare: %s, %s" % (new_version, old_version))
-            self.new_version = FolderScanner(new_version).scan(snapshot)
-            self.old_version = FolderScanner(old_version).scan(snapshot)
+            self.new_version = _scan_folder(new_version, snapshot)
+            self.old_version = _scan_folder(old_version, snapshot)
         except FolderNotExistsException as e:
             raise e
 
@@ -132,6 +116,9 @@ hdlr = logging.FileHandler('info.log')
 format = '%(asctime)s %(levelname)s %(module)s.%(funcName)s():%(lineno)s %(message)s'
 formatter = logging.Formatter(format)
 hdlr.setFormatter(formatter)
+
+logger = logging.getLogger(__name__)
+logger.addHandler(hdlr)
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
